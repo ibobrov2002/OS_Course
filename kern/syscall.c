@@ -20,9 +20,6 @@
 static int
 sys_cputs(const char *s, size_t len) {
     // LAB 8: Your code here
-#ifdef SANITIZE_SHADOW_BASE
-    platform_asan_unpoison((void *)s, ROUNDUP(len + 1, 4096));
-#endif
     /* Check that the user has permission to read memory [s, s+len).
     * Destroy the environment if not. */
     user_mem_assert(curenv, s, len, PROT_R | PROT_USER_);
@@ -190,7 +187,7 @@ sys_alloc_region(envid_t envid, uintptr_t addr, size_t size, int perm) {
         perm &= ~ALLOC_ONE;
     }
 
-    return map_region(&env->address_space, addr, NULL, 0, size, perm) ? -E_NO_MEM : 0;
+    return map_region(&env->address_space, addr, NULL, 0, size, perm);
 }
 
 /* Map the region of memory at 'srcva' in srcenvid's address space
@@ -207,7 +204,7 @@ sys_alloc_region(envid_t envid, uintptr_t addr, size_t size, int perm) {
  *      or the caller doesn't have permission to change one of them.
  *  -E_INVAL if srcva >= MAX_USER_ADDRESS or srcva is not page-aligned,
  *      or dstva >= MAX_USER_ADDRESS or dstva is not page-aligned.
- *  -E_INVAL is srcva is not mapped in srcenvid's address space.
+ *  -E_INVAL if srcva is not mapped in srcenvid's address space.
  *  -E_INVAL if perm is inappropriate (see sys_page_alloc).
  *  -E_INVAL if (perm & PROT_W), but srcva is read-only in srcenvid's
  *      address space.
@@ -231,8 +228,7 @@ sys_map_region(envid_t srcenvid, uintptr_t srcva,
 
     perm |= PROT_USER_;
 
-    return map_region(&dstenv->address_space, dstva, &srcenv->address_space, srcva, size, perm) ?
-        -E_NO_MEM : 0;
+    return map_region(&dstenv->address_space, dstva, &srcenv->address_space, srcva, size, perm);
 }
 
 /* Unmap the region of memory at 'va' in the address space of 'envid'.
@@ -310,8 +306,11 @@ sys_ipc_try_send(envid_t envid, uint32_t value, uintptr_t srcva, size_t size, in
         return -E_IPC_NOT_RECV;
 
     if (srcva < MAX_USER_ADDRESS && env->env_ipc_dstva < MAX_USER_ADDRESS) {
-        if (PAGE_OFFSET(srcva) || PAGE_OFFSET(env->env_ipc_dstva) || 
-            perm & ~PROT_ALL || (perm & ~(PTE_AVAIL | PTE_W)) != (PTE_U | PTE_P))
+        if (PAGE_OFFSET(srcva))
+            return -E_INVAL;
+        if (PAGE_OFFSET(env->env_ipc_dstva))
+            return -E_INVAL;
+        if (perm & ~PROT_ALL)
             return -E_INVAL;
 
         if (map_region(&env->address_space, env->env_ipc_dstva, 
@@ -373,6 +372,15 @@ sys_ipc_recv(uintptr_t dstva, uintptr_t maxsize) {
 static int
 sys_region_refs(uintptr_t addr, size_t size, uintptr_t addr2, uintptr_t size2) {
     // LAB 10: Your code here
+
+    if (addr2 < MAX_USER_ADDRESS) {
+        int maxref1 = region_maxref(&curenv->address_space, addr, size);
+        int maxref2 = region_maxref(&curenv->address_space, addr2, size2);
+        return maxref1 - maxref2;
+    } else {
+        return region_maxref(&curenv->address_space, addr, size);
+    }
+
     return 0;
 }
 
@@ -412,6 +420,8 @@ syscall(uintptr_t syscallno, uintptr_t a1, uintptr_t a2, uintptr_t a3, uintptr_t
         return sys_ipc_try_send((envid_t)a1, (uint32_t)a2, a3,(size_t)a4,(int)a5);
     case SYS_ipc_recv:
         return sys_ipc_recv(a1, a2);
+    case SYS_region_refs:
+        return sys_region_refs(a1, (size_t)a2, a3, a4);
     default:
         return -E_NO_SYS;
     }
