@@ -6,6 +6,7 @@
 #include <inc/string.h>
 #include <inc/assert.h>
 #include <inc/elf.h>
+#include <inc/vsyscall.h>
 
 #include <kern/env.h>
 #include <kern/pmap.h>
@@ -16,6 +17,7 @@
 #include <kern/macro.h>
 #include <kern/pmap.h>
 #include <kern/traceopt.h>
+#include <kern/vsyscall.h>
 
 /* Currently active environment */
 struct Env *curenv = NULL;
@@ -28,6 +30,9 @@ struct Env *envs = env_array;
 /* All environments */
 struct Env *envs = NULL;
 #endif
+
+/* Virtual syscall page address */
+volatile int *vsys;
 
 /* Free environment list
  * (linked by Env->env_link) */
@@ -88,6 +93,8 @@ envid2env(envid_t envid, struct Env **env_store, bool need_check_perm) {
  */
 void
 env_init(void) {
+    // LAB 12: Your code here
+
     /* kzalloc_region only works with current_space != NULL */
 
     /* Allocate envs array with kzalloc_region
@@ -114,6 +121,11 @@ env_init(void) {
         cur_env->env_id = 0;
         env_free_list = cur_env;
     }*/
+
+    vsys = kzalloc_region(UVSYS_SIZE);
+    memset((void *)vsys, 0, ROUNDUP(UVSYS_SIZE, PAGE_SIZE));
+    map_region(current_space, UVSYS, &kspace, (uintptr_t)vsys, UVSYS_SIZE, PROT_R | PROT_USER_);
+    
 }
 
 /* Allocates and initializes a new environment.
@@ -185,7 +197,7 @@ env_alloc(struct Env **newenv_store, envid_t parent_id, enum EnvType type) {
 #endif
 
     /* For now init trapframe with IF set */
-    env->env_tf.tf_rflags = FL_IF | (type == ENV_TYPE_FS ? FL_IOPL_3 : FL_IOPL_0);
+    env->env_tf.tf_rflags = FL_IF;
 
     /* Clear the page fault handler until user installs one. */
     env->env_pgfault_upcall = 0;
