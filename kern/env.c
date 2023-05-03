@@ -185,7 +185,7 @@ env_alloc(struct Env **newenv_store, envid_t parent_id, enum EnvType type) {
 #endif
 
     /* For now init trapframe with IF set */
-    env->env_tf.tf_rflags = FL_IF;
+    env->env_tf.tf_rflags = FL_IF | (type == ENV_TYPE_FS ? FL_IOPL_3 : FL_IOPL_0);
 
     /* Clear the page fault handler until user installs one. */
     env->env_pgfault_upcall = 0;
@@ -358,6 +358,7 @@ load_icode(struct Env *env, uint8_t *binary, size_t size) {
 void
 env_create(uint8_t *binary, size_t size, enum EnvType type) {
     // LAB 8: Your code here
+    // LAB 3: Your code here
     struct Env *env;
     int status = env_alloc(&env, 0, type);
     if (status < 0)
