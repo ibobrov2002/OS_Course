@@ -14,6 +14,7 @@
 #include <kern/tsc.h>
 #include <kern/timer.h>
 #include <kern/env.h>
+#include <kern/pmap.h>
 #include <kern/trap.h>
 #include <kern/kclock.h>
 
@@ -29,6 +30,7 @@ int mon_dumpcmos(int argc, char **argv, struct Trapframe *tf);
 int mon_start(int argc, char **argv, struct Trapframe *tf);
 int mon_stop(int argc, char **argv, struct Trapframe *tf);
 int mon_frequency(int argc, char **argv, struct Trapframe *tf);
+int mon_memory(int argc, char **argv, struct Trapframe *tf);
 
 struct Command {
     const char *name;
@@ -43,9 +45,10 @@ static struct Command commands[] = {
         {"backtrace", "Print stack backtrace", mon_backtrace},
         {"echo", "Display args of echo", mon_echo},
         {"dumpcmos", "Print CMOS contents", mon_dumpcmos},
-        {"timer_start", "No description yet", mon_start},
-        {"timer_stop", "No description yet", mon_stop},
-        {"timer_freq", "No description yet", mon_frequency},
+        {"timer_start", "timer start", mon_start},
+        {"timer_stop", "timer stop", mon_stop},
+        {"timer_freq", "get frequency of timer", mon_frequency},
+        {"memory", "dump memory list", mon_memory},
 };
 #define NCOMMANDS (sizeof(commands) / sizeof(commands[0]))
 
@@ -135,9 +138,21 @@ int mon_frequency(int argc, char **argv, struct Trapframe *tf) {
         return 0;
     }
 
+
     timer_cpu_frequency(argv[1]);
     return 0;
 }
+
+/* Implement memory (mon_memory) command.
+ * This command should call dump_memory_lists()
+ */
+// LAB 6: Your code here
+
+int mon_memory(int argc, char **argv, struct Trapframe *tf) {
+    dump_memory_lists();
+    return 0;
+}
+
 /* Kernel monitor command interpreter */
 
 static int
