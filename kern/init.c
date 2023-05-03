@@ -143,14 +143,14 @@ i386_init(void) {
 
     /* Lab 6 memory management initialization functions */
     init_memory();
-
+    assert(false);
     pic_init();
     timers_init();
-
+    
     /* Framebuffer init should be done after memory init */
     fb_init();
     if (trace_init) cprintf("Framebuffer initialised\n");
-    assert(false);
+    
     /* User environment initialization functions */
     env_init();
 
