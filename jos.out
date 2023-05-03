@@ -1,0 +1,74 @@
++ ld obj/kern/kernel
+WARNING: Image format was not specified for 'json:{"fat-type": 0, "dir": "LoaderPkg/ESP", "driver": "vvfat", "floppy": false, "rw": true, "write-target": {"driver": "qcow", "file": {"driver": "file", "filename": "/var/tmp/vl.JlLpw6"}}}' and probing guessed raw.
+         Automatically detecting the format is dangerous for raw images, write operations on block 0 will be restricted.
+         Specify the 'raw' format explicitly to remove the restrictions.
+[2J[01;01H[=3h[2J[01;01HBdsDxe: failed to load Boot0001 "UEFI QEMU DVD-ROM QM00003 " from PciRoot(0x0)/Pci(0x1,0x1)/Ata(Secondary,Master,0x0): Not Found
+BdsDxe: loading Boot0002 "UEFI QEMU HARDDISK QM00001 " from PciRoot(0x0)/Pci(0x1,0x1)/Ata(Primary,Master,0x0)
+BdsDxe: starting Boot0002 "UEFI QEMU HARDDISK QM00001 " from PciRoot(0x0)/Pci(0x1,0x1)/Ata(Primary,Master,0x0)
+JOS: Loading at 2023-1-4 - 14:41:55...
+JOS: Found ACPI 1.0 RSDP table 1FB7E000
+JOS: Found ACPI 2.0 RSDP table 1FB7E014
+JOS: CR0 - 80010033 CR3 - 1FC01000
+JOS: Loading kernel image...
+JOS: Loading debug tables...
+JOS: MinAddress: 0x1500000, MaxAddress: 0x2406000, Kernel size: 0xF06000
+JOS: Loaded kernel with 1500000 entry point
+JOS: LoaderParams pointer: 1F938890
+JOS: KernelCallGate: 1E83EDB7
+6828 decimal is XXX15254 octal!
+END: 0x8042406000
+Memory allocator is initiallized
+Physical memory: 512M available, base = 640K, extended = 523648K
+Physical memory tree is correct
+Physical memory tree is stil correct
+Kernel virutal memory tree is correct
+enabled interrupts: 1 2 4
+Initialized timer rtc
+Initialized timer pm
+Initialized timer hpet0
+Initialized timer hpet1
+Framebuffer initialised
+enabled interrupts: 0 1 2 4
+FS is running
+FS can do I/O
+Device 1 presence: 1
+block cache is good
+superblock is good
+bitmap is good
+alloc_block is good
+checking consistency of newmotd
+checking consistency of motd
+checking consistency of lorem
+checking consistency of script
+checking consistency of testshell.key
+checking consistency of testshell.sh
+checking consistency of init
+checking consistency of cat
+checking consistency of echo
+checking consistency of ls
+checking consistency of lsfd
+checking consistency of num
+checking consistency of forktree
+checking consistency of primes
+checking consistency of primespipe
+checking consistency of sh
+checking consistency of testfdsharing
+checking consistency of testkbd
+checking consistency of testpipe
+checking consistency of testpteshare
+checking consistency of testshell
+checking consistency of hello
+checking consistency of date
+checking consistency of vdate
+fs consistency is good
+file_open is good
+file_get_block is good
+file_flush is good
+file_truncate is good
+file rewrite is good
+VDATE: 2023-01-04 14:41:56
+Halt
+No runnable environments in the system!
+Welcome to the JOS kernel monitor!
+Type 'help' for a list of commands.
+K> qemu-system-x86_64: terminating on signal 15 from pid 120665 (make)
