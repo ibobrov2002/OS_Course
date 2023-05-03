@@ -394,6 +394,7 @@ csys_yield(struct Trapframe *tf) {
 
 _Noreturn void
 env_pop_tf(struct Trapframe *tf) {
+    cprintf("{%d, %ld}", tf->tf_cs, tf->tf_rip);
     asm volatile(
             "movq %0, %%rsp\n"
             "movq 0(%%rsp), %%r15\n"

@@ -11,6 +11,8 @@
 #include <kern/console.h>
 #include <kern/monitor.h>
 #include <kern/kdebug.h>
+#include <kern/tsc.h>
+#include <kern/timer.h>
 #include <kern/env.h>
 #include <kern/trap.h>
 #include <kern/kclock.h>
@@ -24,6 +26,9 @@ int mon_kerninfo(int argc, char **argv, struct Trapframe *tf);
 int mon_backtrace(int argc, char **argv, struct Trapframe *tf);
 int mon_echo(int argc, char **argv, struct Trapframe *tf);
 int mon_dumpcmos(int argc, char **argv, struct Trapframe *tf);
+int mon_start(int argc, char **argv, struct Trapframe *tf);
+int mon_stop(int argc, char **argv, struct Trapframe *tf);
+int mon_frequency(int argc, char **argv, struct Trapframe *tf);
 
 struct Command {
     const char *name;
@@ -38,6 +43,9 @@ static struct Command commands[] = {
         {"backtrace", "Print stack backtrace", mon_backtrace},
         {"echo", "Display args of echo", mon_echo},
         {"dumpcmos", "Print CMOS contents", mon_dumpcmos},
+        {"timer_start", "No description yet", mon_start},
+        {"timer_stop", "No description yet", mon_stop},
+        {"timer_freq", "No description yet", mon_frequency},
 };
 #define NCOMMANDS (sizeof(commands) / sizeof(commands[0]))
 
@@ -107,6 +115,29 @@ mon_dumpcmos(int argc, char **argv, struct Trapframe *tf) {
     return 0;
 }
 
+/* Implement timer_start (mon_start), timer_stop (mon_stop), timer_freq (mon_frequency) commands. */
+// LAB 5: Your code here:
+int mon_start(int argc, char **argv, struct Trapframe *tf) {
+    if (argc != 2) {
+        cprintf("Incorrect count of arguments\n");
+        return 0;
+    }
+    timer_start(argv[1]);
+    return 0;
+}
+int mon_stop(int argc, char **argv, struct Trapframe *tf) {
+    timer_stop();
+    return 0;
+}
+int mon_frequency(int argc, char **argv, struct Trapframe *tf) {
+    if (argc != 2) {
+        cprintf("Incorrect count of arguments\n");
+        return 0;
+    }
+
+    timer_cpu_frequency(argv[1]);
+    return 0;
+}
 /* Kernel monitor command interpreter */
 
 static int
