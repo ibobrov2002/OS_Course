@@ -12,6 +12,8 @@
 #include <kern/monitor.h>
 #include <kern/kdebug.h>
 #include <kern/env.h>
+#include <kern/trap.h>
+#include <kern/kclock.h>
 
 #define WHITESPACE "\t\r\n "
 #define MAXARGS    16
@@ -21,6 +23,7 @@ int mon_help(int argc, char **argv, struct Trapframe *tf);
 int mon_kerninfo(int argc, char **argv, struct Trapframe *tf);
 int mon_backtrace(int argc, char **argv, struct Trapframe *tf);
 int mon_echo(int argc, char **argv, struct Trapframe *tf);
+int mon_dumpcmos(int argc, char **argv, struct Trapframe *tf);
 
 struct Command {
     const char *name;
@@ -34,6 +37,7 @@ static struct Command commands[] = {
         {"kerninfo", "Display information about the kernel", mon_kerninfo},
         {"backtrace", "Print stack backtrace", mon_backtrace},
         {"echo", "Display args of echo", mon_echo},
+        {"dumpcmos", "Print CMOS contents", mon_dumpcmos},
 };
 #define NCOMMANDS (sizeof(commands) / sizeof(commands[0]))
 
@@ -67,7 +71,6 @@ mon_backtrace(int argc, char **argv, struct Trapframe *tf) {
 	uint64_t rbp = read_rbp();
 	uint64_t *pointer = (uintptr_t *)rbp;
 	uint64_t rip;
-	int res;
 	struct Ripdebuginfo info;
 	cprintf("Stack backtrace:\n");
 	while (rbp != 0) {
@@ -76,18 +79,31 @@ mon_backtrace(int argc, char **argv, struct Trapframe *tf) {
 		pointer++;
 		rip = *pointer;
 		cprintf("rip %016lx\n", rip);
-		res = debuginfo_rip((uintptr_t)rip, &info);
-		if (res < 0) {
-            	    cprintf("Debug info was not found.\n");
-        	} else {
-            	    if (info.rip_fn_namelen == sizeof(info.rip_fn_name)) 
-                        cprintf("    %s:%d: %256s+%lu\n", info.rip_file, info.rip_line, info.rip_fn_name, rip - info.rip_fn_addr);
-           	    else 
-                	cprintf("    %s:%d: %s+%lu\n", info.rip_file, info.rip_line, info.rip_fn_name, rip - info.rip_fn_addr);
-        	}
+		debuginfo_rip((uintptr_t)rip, &info);
+		cprintf(" %s:%d: %s+%lu\n", info.rip_file, info.rip_line, info.rip_fn_name, rip - info.rip_fn_addr);
 		pointer = (uintptr_t *)rbp;
 	}
 	
+    return 0;
+}
+
+int
+mon_dumpcmos(int argc, char **argv, struct Trapframe *tf) {
+    // Dump CMOS memory in the following format:
+    // 00: 00 11 22 33 44 55 66 77 88 99 AA BB CC DD EE FF
+    // 10: 00 ..
+    // Make sure you understand the values read.
+    // Hint: Use cmos_read8()/cmos_write8() functions.
+    // LAB 4: Your code here
+
+    for (uint8_t i = 0; i < 128; ++i) {
+        if (i % 16 == 0) {
+            cprintf("\n%02x: ", i);
+        }
+        cprintf("%02x ", cmos_read8(i));
+    }
+    cprintf("\n");
+    
     return 0;
 }
 
@@ -132,6 +148,8 @@ monitor(struct Trapframe *tf) {
 
     cprintf("Welcome to the JOS kernel monitor!\n");
     cprintf("Type 'help' for a list of commands.\n");
+
+    if (tf) print_trapframe(tf);
 
     char *buf;
     do buf = readline("K> ");
