@@ -143,19 +143,20 @@ i386_init(void) {
 
     /* Lab 6 memory management initialization functions */
     init_memory();
-    assert(false);
-    pic_init();
-    timers_init();
+    // assert(false);
+
+    // pic_init();
+    // timers_init();
     
     /* Framebuffer init should be done after memory init */
     fb_init();
     if (trace_init) cprintf("Framebuffer initialised\n");
-    
     /* User environment initialization functions */
+    //assert(false);
     env_init();
 
     /* Choose the timer used for scheduling: hpet or pit */
-    timers_schedule("hpet0");
+    //timers_schedule("hpet0");
 
 #ifdef CONFIG_KSPACE
     /* Touch all you want */

@@ -90,13 +90,11 @@ list_init(struct List *list) {
 inline static void __attribute__((always_inline))
 list_append(struct List *list, struct List *new) {
     // LAB 6: Your code here
-    struct List *after = list->next;
-
-    new->next = after;
     new->prev = list;
+    new->next = list->next;
 
+    list->next->prev = new;
     list->next = new;
-    after->prev = new;
 }
 
 /*
@@ -109,7 +107,7 @@ list_del(struct List *list) {
     list->prev->next = list->next;
     list->next->prev = list->prev;
     list_init(list);
-    
+
     return list;
 }
 
@@ -190,22 +188,27 @@ alloc_child(struct Page *parent, bool right) {
     assert(parent);
 
     // LAB 6: Your code here
-    if (!parent->class)
-        return NULL;
-        
-    struct Page *new = alloc_descriptor(parent->state);
-    new->parent = parent;
 
+    struct Page *new = alloc_descriptor(parent->state);
+
+    // every class has it's own head
+
+    new->parent = parent;
+    new->refc = parent->refc != 0;
+
+    assert(parent->class != 0);
     new->class = parent->class - 1;
+
+
     if (right) {
         parent->right = new;
+
+        // essence of string below: new->addr = parent->addr + (CLASS_SIZE(new->class) >> CLASS_BASE);
         new->addr = parent->addr + (1ULL << new->class);
     } else {
         parent->left = new;
         new->addr = parent->addr;
     }
-    if (parent->refc)
-        new->refc = 1;
 
     return new;
 }
@@ -436,14 +439,14 @@ page_lookup_virtual(struct Page *node, uintptr_t addr, int class, int alloc) {
 static void
 attach_region(uintptr_t start, uintptr_t end, enum PageState type) {
     if (trace_memory_more) cprintf("Attaching memory region [%08lX, %08lX] with type %d\n", start, end - 1, type);
-    int class = 0, res = 0;
-    
-    (void)class; (void)res;
+
     start = ROUNDDOWN(start, CLASS_SIZE(0));
     end = ROUNDUP(end, CLASS_SIZE(0));
+        int class = 0, res = 0;
 
+    (void)class; (void)res;
     // LAB 6: Your code here
-    
+
     while (start != end) {
         class = 0;
         for (; class < MAX_CLASS; class++) {
@@ -646,24 +649,16 @@ dump_virtual_tree(struct Page *node, int class) {
 void
 dump_memory_lists(void) {
     // LAB 6: Your code here
-    struct List *li = NULL;
-    struct Page *peer = NULL;
-
-    cprintf("Free pages:\nClass   Page adresses\n");
-    for (int pclass = 0; pclass < MAX_CLASS; pclass++, li = NULL) {
-        if (free_classes[pclass].next == &free_classes[pclass]) {
-            continue;
+    for (int i = 0; i < MAX_CLASS; ++i) {
+        struct List *list = &free_classes[i];
+        if (!list_empty(list)) {
+            for (struct List *n = list->next; n != list; n = n->next) {
+                struct Page *page = (struct Page *)n;
+                cprintf("pa: [%012lX-%012lX] va:[%012lx-%012lx] class: %d\n",
+                        ((long)page->addr) << CLASS_BASE, (page->addr << CLASS_BASE) + (long)CLASS_SIZE(page->class),
+                        (long) KADDR(((long long)page->addr) << CLASS_BASE), (long) KADDR((page->addr << CLASS_BASE) + (long long)CLASS_SIZE(page->class)), page->class);
+            }
         }
-        cprintf("%2d      ", pclass);
-
-        int cnt = 1;
-        for (li = free_classes[pclass].next; li != &free_classes[pclass]; li = li->next, cnt++) {
-            peer = (struct Page *)li;
-            cprintf("%08lX ", (unsigned long)peer->addr << pclass);
-            if (cnt % 8 == 0)
-                cprintf("\n        ");
-        }
-        cprintf("\n\n");
     }
 }
 
@@ -678,7 +673,7 @@ void
 dump_page_table(pte_t *pml4) {
     cprintf("Page table:\n");
     // LAB 7: Your code here
-    
+
     for (size_t i = NUSERPML4; i < PML4_ENTRY_COUNT; ++i) {
         if (pml4[i] == 0) {
             continue;
@@ -910,6 +905,7 @@ unmap_page(struct AddressSpace *spc, uintptr_t addr, int class) {
     pde_t *pd = KADDR(PTE_ADDR(pdp[pdpi0]));
 
 
+
     /* Unmap 2 MB hw pages if requested virtual page size is larger than
      * or equal 2 MB.
      * Use remove_pt() here. remove_pt() can handle recusive removal.
@@ -934,7 +930,6 @@ unmap_page(struct AddressSpace *spc, uintptr_t addr, int class) {
      */
 
     // LAB 7: Your code here
-
     // If page is not present don't need to do anything
     //otherwise split 2*MB page into smaller 4*KB pages, allocting new page table level
     if (!(pd[pdi0] & PTE_P))
@@ -1525,7 +1520,7 @@ release_address_space(struct AddressSpace *space) {
  * Loads new CR3 value with lcr3()
  *
  * TIP: Don't switch address space
- * if space == current_space for perfomance reasons
+ * if space == current_space for perfomance reasonsaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
  * (Why it might me impactful?)
  *
  * Returns old address space
@@ -1533,7 +1528,7 @@ release_address_space(struct AddressSpace *space) {
 struct AddressSpace *
 switch_address_space(struct AddressSpace *space) {
     assert(space);
-    ///LAB 7: Your code here
+    //LAB 7: Your code here
     if (space == current_space) {
         return current_space;
     }
@@ -1543,6 +1538,30 @@ switch_address_space(struct AddressSpace *space) {
     current_space = space;
 
     return old_address_space;
+}
+
+int
+init_address_space(struct AddressSpace *space) {
+    /* Allocte page table with alloc_pt into space->cr3
+     * (remember to clean flag bits of result with PTE_ADDR) */
+    // LAB 8: Your code here
+    pte_t pte = 0;
+    alloc_pt(&pte);
+    pte = PTE_ADDR(pte);
+    space->cr3 = (uintptr_t)pte;
+    /* put its kernel virtual address to space->pml4 */
+    // LAB 8: Your code here
+    space->pml4 = KADDR(pte);
+    // Allocate virtual tree root node
+    // of type INTERMEDIATE_NODE with alloc_rescriptor() of type
+    // LAB 8: Your code here
+    space->root = alloc_descriptor(INTERMEDIATE_NODE);
+    /* Initialize UVPT */
+    // LAB 8: Your code here
+    space->pml4[PML4_INDEX(UVPT)] = space->cr3 | PTE_P | PTE_U;
+    /* Why this call is required here and what does it do? */
+    propagate_one_pml4(space, &kspace);
+    return 0;
 }
 
 /* Buffers for filler pages are statically allocated for simplicity
@@ -1565,12 +1584,12 @@ detect_memory(void) {
 
     /* Attach first page as reserved memory */
     // LAB 6: Your code here
-    attach_region(0, CLASS_SIZE(0), RESERVED_NODE);
+    attach_region(0, PAGE_SIZE, RESERVED_NODE);
     /* Attach kernel and old IO memory
      * (from IOPHYSMEM to the physical address of end label. end points the the
      *  end of kernel executable image.)*/
     // LAB 6: Your code here
-    attach_region(IOPHYSMEM, (uintptr_t)end - KERN_BASE_ADDR, RESERVED_NODE);
+    attach_region(IOPHYSMEM, PADDR(end), RESERVED_NODE);
     /* Detech memory via ether UEFI or CMOS */
     if (uefi_lp && uefi_lp->MemoryMap) {
         EFI_MEMORY_DESCRIPTOR *start = (void *)uefi_lp->MemoryMap;
@@ -1800,6 +1819,7 @@ init_memory(void) {
         panic("Can't map kernel onto kernel space address");
     }
 
+
     extern char __text_end[], __text_start[];
     assert(!((uintptr_t)__text_start & CLASS_MASK(0)));
     assert(__text_end - __text_start < MAX_LOW_ADDR_KERN_SIZE);
@@ -1808,11 +1828,11 @@ init_memory(void) {
     /* ...and make kernel .text section executable: */
 
     // LAB 7: Your code here
-    // Map [PADDR(__text_start);PADDR(__text_end)] to [__text_start, __text_end] as RW-
+    // Map [PADDR(__text_start);PADDR(__text_end)] to [__text_start, __text_end] as R-X
+    // It is next so it should be R-X
     if (map_physical_region(&kspace, (uintptr_t)__text_start, PADDR(__text_start), __text_end - __text_start, PROT_R | PROT_X) < 0) {
         panic("Can't map kernel's text section onto kernel space address");
     }
-
     /* Allocate kernel stacks */
 
     // LAB 7: Your code here
@@ -1904,6 +1924,7 @@ init_memory(void) {
     //     [PADDR(bootstack), PADDR(boottop)] as RW-
     // Map [X86ADDR(KERN_PF_STACK_TOP - KERN_PF_STACK_SIZE), KERN_PF_STACK_TOP] to
     //     [PADDR(pfstack), PADDR(pfstacktop)] as RW-
+
     if (map_physical_region(&kspace, FRAMEBUFFER, uefi_lp->FrameBufferBase, uefi_lp->FrameBufferSize, PROT_R | PROT_W | PROT_WC) < 0) {
         panic("Can't map framebuffer");
     }
@@ -1931,4 +1952,51 @@ init_memory(void) {
 
     check_virtual_tree(kspace.root, MAX_CLASS);
     if (trace_init) cprintf("Kernel virutal memory tree is correct\n");
+}
+
+static uintptr_t user_mem_check_addr;
+
+/*
+ * This function checks whether given memory range
+ * has specified permissions and sets user_mem_check_addr
+ * to first non-applicable address
+ *
+ * HINT: Use page_lookup_virtual with class==0 alloc==0 to
+ * lookup the smallest existing page at the given address.
+ *
+ * Returned page should have associated physical page
+ * and permissions set as bits in state field.
+ *
+ * Return 0 if check is passed or -E_FAULT if region
+ * does not have enough permissions.
+ */
+int
+user_mem_check(struct Env *env, const void *va, size_t len, int perm) {
+    // LAB 8: Your code here
+    const void *current = (void *)ROUNDDOWN(va, PAGE_SIZE);
+    const void *end = va + len;
+    struct Page *user_root = env->address_space.root;
+    while (current < end) {
+        struct Page *page = page_lookup_virtual(user_root, (uintptr_t)current, 0, 0);
+        if (!page->phy || (page->state & PAGE_PROT(perm)) != PAGE_PROT(perm)) {
+            user_mem_check_addr = (uintptr_t)(MAX(va, current));
+            return -E_FAULT;
+        }
+        current += PAGE_SIZE;
+    }
+    if ((uintptr_t)end > MAX_USER_READABLE) {
+        user_mem_check_addr = MAX(MAX_USER_READABLE, (uintptr_t)current);
+        return -E_FAULT;
+    }
+    return 0;
+}
+
+void
+user_mem_assert(struct Env *env, const void *va, size_t len, int perm) {
+    if (user_mem_check(env, va, len, perm | PROT_USER_) < 0) {
+        cprintf("[%08x] user_mem_check assertion failure for "
+                "va=%016zx ip=%016zx\n",
+                env->env_id, user_mem_check_addr, env->env_tf.tf_rip);
+        env_destroy(env); /* may not return */
+    }
 }

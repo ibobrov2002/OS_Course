@@ -35,9 +35,6 @@
 #define RTC_AIE 0x20
 #define RTC_UIE 0x10
 
-#define	IO_RTC_CMND		0x70
-#define	IO_RTC_DATA		0x71
-
 void rtc_timer_init(void);
 uint8_t rtc_check_status(void);
 

@@ -18,6 +18,9 @@
 #include "asan_memintrinsics.h"
 #include "inc/memlayout.h"
 
+void platform_asan_unpoison(void *addr, size_t size);
+void platform_asan_poison(void *addr, size_t size);
+
 #if !defined(SANITIZE_SHADOW_BASE) || !defined(SANITIZE_SHADOW_SIZE) || !defined(SANITIZE_SHADOW_OFF)
 #error "You are to define SANITIZE_SHADOW_BASE and SANITIZE_SHADOW_SIZE for shadow memory support!"
 #endif
@@ -42,6 +45,8 @@ platform_asan_init() {
 
     extern char end[];
     extern size_t max_memory_map_addr;
+    //platform_asan_unpoison((void *)(USER_STACK_TOP - USER_STACK_SIZE), USER_STACK_SIZE);
+    // platform_asan_unpoison((void *)UTEMP - HUGE_PAGE_SIZE, HUGE_PAGE_SIZE);
 
     /* Fill memory shadow memory of kernel itself with 0x00s, */
     asan_internal_fill_range(KERN_BASE_ADDR + KERN_START_OFFSET, (uintptr_t)end - (KERN_BASE_ADDR + KERN_START_OFFSET), 0);
@@ -49,6 +54,10 @@ platform_asan_init() {
     /* and the rest of preallocated shadow memory within BOOT_MEM_SIZE with 0xFFs */
     if (KERN_BASE_ADDR + MIN(BOOT_MEM_SIZE, max_memory_map_addr) > (uintptr_t)end)
         asan_internal_fill_range((uintptr_t)end, MIN(BOOT_MEM_SIZE, max_memory_map_addr) + KERN_BASE_ADDR - (uintptr_t)end, 0x00);
+    //platform_asan_unpoison((void *)0x7fffffd000, (size_t)0x0000001000);
+    //platform_asan_unpoison((void *)(USER_STACK_TOP - USER_STACK_SIZE), USER_STACK_SIZE);
+    //platform_asan_unpoison((void *)(UTEXT) + 1, USER_STACK_TOP-UTEXT-1);
+    
 }
 
 void
@@ -91,7 +100,7 @@ platform_asan_fatal(const char *msg, uptr p, size_t width, unsigned access_type)
 bool
 platform_asan_fakestack_enter(uint32_t *thread_id) {
     // TODO: implement!
-    return true;
+    return false;
 }
 
 void

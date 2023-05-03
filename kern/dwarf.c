@@ -62,7 +62,7 @@ dwarf_read_abbrev_entry(const void *entry, unsigned form, void *buf, int bufsize
     switch (form) {
     case DW_FORM_addr: {
         uintptr_t data = 0;
-        memcpy(&data, entry, address_size);
+        memcpy(&data, entry, address_size);//push/mov/pop;
         entry += address_size;
         if (buf && bufsize >= sizeof(uintptr_t))
             put_unaligned(data, (uintptr_t *)buf);
@@ -71,17 +71,15 @@ dwarf_read_abbrev_entry(const void *entry, unsigned form, void *buf, int bufsize
     case DW_FORM_block2: {
         /* Read block of 2-byte length followed by 0 to 65535 contiguous information bytes */
         // LAB 2: Your code here
-        
-        	uint16_t length = get_unaligned(entry, uint16_t);
-		entry += sizeof(uint16_t);
-		struct Slice slice = {
-		.mem = entry,
-		.len = length,
-		};
-		if (buf) memcpy(buf, &slice, sizeof(struct Slice));
-		entry += length;
-		bytes = sizeof(uint16_t) + length;     
-		
+        Dwarf_Half length = get_unaligned(entry, Dwarf_Half);
+        entry += sizeof(Dwarf_Half);
+        struct Slice slice = {
+                .mem = entry,
+                .len = length,
+        };
+        if (buf) memcpy(buf, &slice, sizeof(struct Slice));
+        entry += length;
+        bytes = sizeof(Dwarf_Half) + length;
     } break;
     case DW_FORM_block4: {
         uint32_t length = get_unaligned(entry, uint32_t);
@@ -574,13 +572,10 @@ address_by_fname(const struct Dwarf_Addrs *addrs, const char *fname, uintptr_t *
                     do {
                         abbrev_entry += dwarf_read_uleb128(abbrev_entry, &name);
                         abbrev_entry += dwarf_read_uleb128(abbrev_entry, &form);
-
-                        if (name == DW_AT_low_pc) {
-                            count = dwarf_read_abbrev_entry(entry, form, &low_pc, sizeof(low_pc), address_size);
-                        } else {
-                            count = dwarf_read_abbrev_entry(entry, form, NULL, 0, address_size);
-                        }
-                        entry += count;
+                        if (name == DW_AT_low_pc)
+                            entry += dwarf_read_abbrev_entry(entry, form, &low_pc, sizeof(low_pc), address_size);
+                        else
+                            entry += dwarf_read_abbrev_entry(entry, form, NULL, 0, address_size);
                     } while (name || form);
 
                     *offset = low_pc;

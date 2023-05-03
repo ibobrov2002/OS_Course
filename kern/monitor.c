@@ -25,7 +25,7 @@
 int mon_help(int argc, char **argv, struct Trapframe *tf);
 int mon_kerninfo(int argc, char **argv, struct Trapframe *tf);
 int mon_backtrace(int argc, char **argv, struct Trapframe *tf);
-int mon_echo(int argc, char **argv, struct Trapframe *tf);
+int mon_donut(int argc, char **argv, struct Trapframe *tf);
 int mon_dumpcmos(int argc, char **argv, struct Trapframe *tf);
 int mon_start(int argc, char **argv, struct Trapframe *tf);
 int mon_stop(int argc, char **argv, struct Trapframe *tf);
@@ -45,12 +45,12 @@ static struct Command commands[] = {
         {"help", "Display this list of commands", mon_help},
         {"kerninfo", "Display information about the kernel", mon_kerninfo},
         {"backtrace", "Print stack backtrace", mon_backtrace},
-        {"echo", "Display args of echo", mon_echo},
+        {"donut", "print donut", mon_donut},
         {"dumpcmos", "Print CMOS contents", mon_dumpcmos},
-        {"timer_start", "timer start", mon_start},
-        {"timer_stop", "timer stop", mon_stop},
-        {"timer_freq", "get frequency of timer", mon_frequency},
-        {"memory", "dump memory list", mon_memory},
+        {"timer_start", "No description yet", mon_start},
+        {"timer_stop", "No description yet", mon_stop},
+        {"timer_freq", "No description yet", mon_frequency},
+        {"memory", "DESCRIPTION", mon_memory},
         {"virt", "print virtual memory tree", mon_virt},
         {"pagetable", "print page table", mon_pagetable}
 };
@@ -82,25 +82,55 @@ mon_kerninfo(int argc, char **argv, struct Trapframe *tf) {
 int
 mon_backtrace(int argc, char **argv, struct Trapframe *tf) {
     // LAB 2: Your code here
+    cprintf("Stack backtrace:\n");
+    uint64_t *rbp = (uint64_t*) read_rbp();
+    while (rbp) {
+        uint64_t rip = rbp[1];
+        cprintf("rbp %016lx ", *rbp);
+        cprintf("rip %016lx\n ", rip);
+        struct Ripdebuginfo info;
+        int err = debuginfo_rip((uintptr_t) rip, &info);
+        if (!err) {
+            cprintf(" %s:%d: %*s+%lu\n", info.rip_file, info.rip_line,
+                    info.rip_fn_namelen, info.rip_fn_name,
+                    rip - info.rip_fn_addr);
+        } else {
+            cprintf("Could not get rip debug info %lx\n", rip);
+        }
 
-	uint64_t rbp = read_rbp();
-	uint64_t *pointer = (uintptr_t *)rbp;
-	uint64_t rip;
-	struct Ripdebuginfo info;
-	cprintf("Stack backtrace:\n");
-	while (rbp != 0) {
-		cprintf(" rbp %016lx ", rbp);
-		rbp = *pointer;
-		pointer++;
-		rip = *pointer;
-		cprintf("rip %016lx\n", rip);
-		debuginfo_rip((uintptr_t)rip, &info);
-		cprintf(" %s:%d: %s+%lu\n", info.rip_file, info.rip_line, info.rip_fn_name, rip - info.rip_fn_addr);
-		pointer = (uintptr_t *)rbp;
-	}
-	
+        rbp = (uint64_t *) rbp[0];
+    }
+
     return 0;
 }
+
+int
+mon_donut(int argc, char **argv, struct Trapframe *tf)
+{
+    cprintf("                                  @@@@@@@@\n"
+            "                               ####$$$$$$$$@@@$$                               \n"
+            "                             *******#####$$$$$$$$$$                            \n"
+            "                            =====!!!!***#####$$$$$$$#                          \n"
+            "                           :;;;;;;==!!!****########$###                        \n"
+            "                           ::~~::;;;=!!=!!*****#########                       \n"
+            "                           --,,-~~~:;;;===!******#*#####**                     \n"
+            "                           ,.....,-~~:;:====!!*!***********                    \n"
+            "                           .........--~::;;===!!!*!********!                   \n"
+            "                           ..........,--~:;;;;==!!!!!*****!!                   \n"
+            "                            ...........,-~~::;;===!=!!!!!!!!=                  \n"
+            "                             ......,,-..,,-~::;;;====!=!!!!!=                  \n"
+            "                             .,-~~~;;##..,,-~~::;;;==========;                 \n"
+            "                              .-~;=*#$$@...,-~~:::;;;;;======;                 \n"
+            "                                -;!!*#$$#...,--~~:::;;;;;;;;;:                 \n"
+            "                                 -;=!**!=~...,---~:::::;;;;;:                  \n"
+            "                                  ,:=:;;:-...,,,--~~~:::::::~                  \n"
+            "                                    -:;:~-.....,,--~~~~~~~~~                   \n"
+            "                                      ,--,.....,,,---------                    \n"
+            "                                        .........,,,,,,,,,                     \n"
+            "                                           .............   \n");
+    return 0;
+}
+
 
 int
 mon_dumpcmos(int argc, char **argv, struct Trapframe *tf) {
@@ -110,15 +140,17 @@ mon_dumpcmos(int argc, char **argv, struct Trapframe *tf) {
     // Make sure you understand the values read.
     // Hint: Use cmos_read8()/cmos_write8() functions.
     // LAB 4: Your code here
+    for (size_t i = 0; i < 128; i++) {
+        if (i == 0)
+            cprintf("00:");
+        else if (i % 16 == 0)
+            cprintf("\n%02lx:", i);
 
-    for (uint8_t i = 0; i < 128; ++i) {
-        if (i % 16 == 0) {
-            cprintf("\n%02x: ", i);
-        }
-        cprintf("%02x ", cmos_read8(i));
+        cprintf(" %02x", cmos_read8(i));
     }
+
     cprintf("\n");
-    
+
     return 0;
 }
 
@@ -142,7 +174,6 @@ int mon_frequency(int argc, char **argv, struct Trapframe *tf) {
         return 0;
     }
 
-
     timer_cpu_frequency(argv[1]);
     return 0;
 }
@@ -151,7 +182,6 @@ int mon_frequency(int argc, char **argv, struct Trapframe *tf) {
  * This command should call dump_memory_lists()
  */
 // LAB 6: Your code here
-
 int mon_memory(int argc, char **argv, struct Trapframe *tf) {
     dump_memory_lists();
     return 0;
@@ -160,7 +190,6 @@ int mon_memory(int argc, char **argv, struct Trapframe *tf) {
 /* Implement mon_pagetable() and mon_virt()
  * (using dump_virtual_tree(), dump_page_table())*/
 // LAB 7: Your code here
-
 int mon_virt(int argc, char **argv, struct Trapframe *tf) {
     dump_virtual_tree(current_space->root, current_space->root->class);
     return 0;
@@ -217,14 +246,4 @@ monitor(struct Trapframe *tf) {
     char *buf;
     do buf = readline("K> ");
     while (!buf || runcmd(buf, tf) >= 0);
-}
-
-int
-mon_echo(int argc, char **argv, struct Trapframe *tf)
-{
-	int i;
-	argc--;
-	for(i=1; i<=argc; i++)
-		cprintf("%s%c", argv[i], i==argc? '\n': ' ');
-	return 0;
 }

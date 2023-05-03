@@ -186,6 +186,21 @@ vprintfmt(void (*putch)(int, void *), void *put_arg, const char *fmt, va_list ap
                 while (width-- > 0) putch(padc, put_arg);
             }
 
+            // ptr = (const char*)0x7000000000;
+            // ch = *ptr;
+            // ptr = (const char*)0x6000000000;
+            // ch = *ptr;
+            // ptr = (const char*)0x5000000000;
+            // ch = *ptr;
+            // ptr = (const char*)0x4000000000;
+            // ch = *ptr;
+            // ptr = (const char*)0x3000000000;
+            // ch = *ptr;
+            // ptr = (const char*)0x2000000000;
+            // ch = *ptr;
+            // ptr = (const char*)0x1000000000;
+            // ch = *ptr;
+            //ch = *ptr;//error
             for (; (ch = *ptr++) && (precision < 0 || --precision >= 0); width--) {
                 putch(altflag && (ch < ' ' || ch > '~') ? '?' : ch, put_arg);
             }

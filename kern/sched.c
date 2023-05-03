@@ -25,23 +25,18 @@ sched_yield(void) {
      * below to halt the cpu */
 
     // LAB 3: Your code here:
-    size_t cur_env_index = (curenv) ? ENVX(curenv->env_id) : 0; // get env number in array.
-
-    for (size_t i = cur_env_index; i < NENV; i++) {
-        if (envs[i].env_status == ENV_RUNNABLE) {
-            env_run(&envs[i]);
-        }
+    const size_t last_sched = curenv ? curenv - envs : 0;
+    size_t next = last_sched + 1;
+    next %= NENV;
+    while (next != last_sched) {
+        if (envs[next].env_status == ENV_RUNNABLE || envs[next].env_status == ENV_RUNNING)
+            break;
+        next++;
+        next %= NENV;
     }
 
-    for (size_t i = 0; i < cur_env_index; i++) {
-        if (envs[i].env_status == ENV_RUNNABLE) {
-            env_run(&envs[i]);
-        }
-    }
-
-    if (curenv->env_status == ENV_RUNNING) {
-        env_run(curenv);
-    }
+    if (envs[next].env_status == ENV_RUNNABLE || envs[next].env_status == ENV_RUNNING)
+        env_run(&envs[next]);
 
     cprintf("Halt\n");
 

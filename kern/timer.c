@@ -101,11 +101,10 @@ acpi_find_table(const char *sign) {
         // ACPI 1.0
         // use rsdt
         physaddr_t rsdt_address = rsdp->RsdtAddress;
-        // mmio_map_region ?
         rsdt = (RSDT *)rsdt_address;
 
     } else {
-        // ACPI 2.0Xs
+        // ACPI 2.0
         // use xsdt
         physaddr_t xsdt_address = rsdp->XsdtAddress;
         rsdt = (RSDT *)xsdt_address;
@@ -120,8 +119,8 @@ acpi_find_table(const char *sign) {
         physaddr_t header_physical = rsdt->PointerToOtherSDT[i];
         ACPISDTHeader *header = (ACPISDTHeader *)mmio_map_region(header_physical, sizeof(ACPISDTHeader));
 
-        header = mmio_map_region(header_physical, header->Length);
-        //cprintf("%c%c%c%c\n", header->Signature[0], header->Signature[1], header->Signature[2], header->Signature[3]);
+        //header = mmio_map_region(header_physical, header->Length);
+        // cprintf("%c%c%c%c\n", header->Signature[0], header->Signature[1], header->Signature[2], header->Signature[3]);
         if (!strncmp(header->Signature, sign, 4))
             return header;
     };
@@ -260,13 +259,10 @@ hpet_enable_interrupts_tim0(void) {
     uint64_t ticks_per_500ms = (Peta / 2) / femptosec_per_tick;
     // disable interrupts
     hpetReg->GEN_CONF = hpetReg->GEN_CONF & ~((uint64_t)HPET_ENABLE_CNF);
-    // enable legacy mode
+    // enable legacy code
     hpetReg->GEN_CONF = hpetReg->GEN_CONF | HPET_LEG_RT_CNF;
-
     // reset main counter
     hpetReg->MAIN_CNT = (uint64_t)0;
-
-    hpetReg->TIM0_CONF |= HPET_TN_PER_INT_CAP;
     // set interrupt type to periodic
     hpetReg->TIM0_CONF |= HPET_TN_TYPE_CNF;
     // enable interrupts
@@ -313,7 +309,7 @@ hpet_enable_interrupts_tim1(void) {
     // allow to set accumulator
     hpetReg->TIM1_CONF |= HPET_TN_VAL_SET_CNF;
 
-    uint64_t timer_val_mask = hpetReg->TIM0_CONF & HPET_TN_SIZE_CAP ? 0xFFFFFFFFFFFFFFFF : 0xFFFFFFFF;
+    uint64_t timer_val_mask = hpetReg->TIM1_CONF & HPET_TN_SIZE_CAP ? 0xFFFFFFFFFFFFFFFF : 0xFFFFFFFF;
 
     // set accumulator frequency
     hpetReg->TIM1_COMP = ticks_per_1500ms & timer_val_mask;
@@ -393,7 +389,6 @@ pmtimer_cpu_frequency(void) {
         uint64_t pm_cur = pmtimer_get_timeval();
         tsc_end = read_tsc();
         if (pm_start <= pm_cur) {
-            /* No overflow */
             pm_delta = pm_cur - pm_start;
         } else {
             pm_delta = is32 ? 0xFFFFFFFF : 0x00FFFFFF;
