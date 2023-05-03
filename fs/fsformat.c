@@ -17,6 +17,7 @@
 #include <sys/mman.h>
 #include <sys/stat.h>
 #include <sys/types.h>
+#include <dirent.h>
 #undef off_t
 #undef bool
 
@@ -31,7 +32,7 @@ typedef int bool;
 #include <inc/mmu.h>
 #include <inc/fs.h>
 
-#define ROUNDUP(n, v) ((n)-1 + (v) - ((n)-1) % (v))
+#define ROUNDUP(n, v) ((n == 0) ? (0) : ((n)-1 + (v) - ((n)-1) % (v)))
 #define MAX_DIR_ENTS  128
 
 struct Dir {
@@ -160,6 +161,7 @@ finishdir(struct Dir *d) {
     int size = d->n * sizeof(struct File);
     struct File *start = alloc(size);
     memmove(start, d->ents, size);
+    //dump_dir(d); [debag]
     finishfile(d->f, blockof(start), ROUNDUP(size, BLKSIZE));
     free(d->ents);
     d->ents = NULL;
@@ -189,6 +191,26 @@ writefile(struct Dir *dir, const char *name) {
         last = name;
 
     f = diradd(dir, FTYPE_REG, last);
+    f->f_cred.fc_uid = 0;
+    f->f_cred.fc_gid = 0;
+
+    if (*name == 'o') {
+        f->f_cred.fc_permission = S_IRWXU | S_IRWXG | S_IRWXO;
+    } else if (!strcmp(name, "fs/load/read-only")) {
+        f->f_cred.fc_permission = S_IRUSR | S_IRGRP | S_IROTH;
+        f->f_cred.fc_uid = 1;
+        f->f_cred.fc_gid = 1;
+    } else if (!strcmp(name, "fs/load/write-only")) {
+        f->f_cred.fc_permission = S_IWUSR | S_IWGRP | S_IWOTH;
+        f->f_cred.fc_uid = 1;
+        f->f_cred.fc_gid = 1;
+    } else if (!strcmp(name, "fs/load/home/user")) {
+        f->f_cred.fc_permission = S_IRUSR | S_IRGRP | S_IROTH;
+        f->f_cred.fc_uid = 1000;
+        f->f_cred.fc_gid = 1000;
+    } else {
+        f->f_cred.fc_permission = S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP | S_IROTH;
+    }
     start = alloc(st.st_size);
     readn(fd, start, st.st_size);
     finishfile(f, blockof(start), st.st_size);
@@ -199,6 +221,102 @@ void
 usage(void) {
     fprintf(stderr, "Usage: fsformat fs.img NBLOCKS files...\n");
     exit(2);
+}
+
+/*
+ * debug function
+ */
+void dump_file(struct File *file) {
+    fprintf(stderr,"Name:[%s]\n", file->f_name);
+    fprintf(stderr, "Type:[%d]\n", file->f_type);
+    fprintf(stderr, "dirrect blocks: ");
+
+    for (int i = 0; i < NDIRECT; ++i) {
+        fprintf(stderr, "[%d] ", file->f_direct[i]);
+    }
+
+    fprintf(stderr, "\n");
+    fprintf(stderr, "indirect:[%u] \n", file->f_indirect);
+    fprintf(stderr, "uid:[%u] \n", file->f_cred.fc_uid);
+    fprintf(stderr, "gid:[%u] \n", file->f_cred.fc_gid);
+    fprintf(stderr, "acc:[%u] \n", file->f_cred.fc_permission);
+}
+
+/*
+ * debug function
+ */
+void dump_dir(struct Dir *dir) {
+    dump_file(dir->f);
+
+    for (int i = 0; i < dir->n; i++) {
+        dump_file(&dir->ents[i]);
+    }
+
+    fprintf(stderr, "\n");
+}
+
+/*
+ * write dir (including files and subdirs) and it's content
+ */
+void writedir(struct Dir *root, const char *full_name){
+    const char *expected_dir_location = "fs/";
+    assert(strncmp(full_name, expected_dir_location, 3) == 0);
+
+    struct Dir ldir;  // loader interpretation of dir
+
+    const char *name = strrchr(full_name, '/');
+    name++; // char after '/'
+
+    struct File *jdir = diradd(root, FTYPE_DIR, name); // Dir struct in JOS
+
+    jdir->f_cred.fc_permission = S_IRWXU | S_IRGRP | S_IXGRP | S_IROTH | S_IXOTH | S_IWOTH;
+    jdir->f_cred.fc_uid = 0;
+    jdir->f_cred.fc_gid = 0;
+
+    startdir(jdir, &ldir);
+    DIR *dir; // Linux dir
+    struct dirent *ent;
+
+
+    if ((dir = opendir(full_name)) != NULL) {
+        while ((ent = readdir(dir)) != NULL) {
+            if (strcmp(ent->d_name, ".") == 0 || strcmp(ent->d_name, "..") == 0) {
+                continue;
+            }
+
+            struct stat st;
+
+            size_t l1 = strlen(full_name), l2 = strlen(ent->d_name);
+
+            char *full_entry_name = malloc(l1 + l2 + 2);
+            strncpy(full_entry_name, full_name, l1);
+            *(full_entry_name + l1) = '/';
+            strncpy(full_entry_name + l1 + 1, ent->d_name, l2);
+            *(full_entry_name + l1 + l2 + 1) = '\0';
+
+
+            if (stat(full_entry_name, &st) < 0) {
+                panic("stat failure: %s\n", full_entry_name);
+            }
+
+            if (S_ISREG(st.st_mode)) {
+                writefile(&ldir, full_entry_name);
+            } else if (S_ISDIR(st.st_mode)) {
+                writedir(&ldir, full_entry_name);
+            } else {
+                panic("Unsupported file type: %s\n", ent->d_name);
+                exit(1);
+            }
+
+            free((void *)full_entry_name);
+        }
+
+        closedir(dir);
+    } else {
+        panic("Dir does not open [%s] %s\n", full_name, strerror(errno));
+        exit(1);
+    }
+    finishdir(&ldir);
 }
 
 int
@@ -219,10 +337,28 @@ main(int argc, char **argv) {
     opendisk(argv[1]);
 
     startdir(&super->s_root, &root);
-    for (i = 3; i < argc; i++)
-        writefile(&root, argv[i]);
-    finishdir(&root);
+    for (i = 3; i < argc; i++) {
+        struct stat st;
 
+        if (stat(argv[i], &st) < 0) {
+            panic("stat error %s\n", argv[i]);
+            exit(1);
+        }
+
+        if (S_ISDIR(st.st_mode)) {
+            writedir(&root, argv[i]);
+        } else if (S_ISREG(st.st_mode)) {
+            writefile(&root, argv[i]);
+        } else {
+            panic("Unsupported file type: %s\n", argv[i]);
+            exit(1);
+        }
+    }
+    root.f->f_cred.fc_permission = S_IRWXU | S_IRGRP | S_IXGRP | S_IROTH | S_IXOTH | S_IWOTH;
+    root.f->f_cred.fc_uid = 0;
+    root.f->f_cred.fc_gid = 0;
+    
+    finishdir(&root);
     finishdisk();
     return 0;
 }

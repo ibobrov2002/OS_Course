@@ -7,34 +7,47 @@ FSOFILES := 		$(OBJDIR)/fs/ide.o \
 			$(OBJDIR)/fs/serv.o \
 			$(OBJDIR)/fs/test.o \
 
-FSIMGTXTFILES :=	fs/newmotd \
-			fs/motd \
-			fs/lorem \
-			fs/script \
-			fs/testshell.key \
-			fs/testshell.sh
+FSIMGDIRS := fs/load/etc
+
+FSIMGTXTFILES :=	fs/load/newmotd \
+					fs/load/motd \
+					fs/load/lorem \
+					fs/load/script \
+					fs/load/testshell.key \
+					fs/load/testshell.sh \
+					fs/load/read-only \
+					fs/load/write-only \
 
 USERAPPS :=		$(OBJDIR)/user/init \
-			$(OBJDIR)/user/cat \
-			$(OBJDIR)/user/echo \
-			$(OBJDIR)/user/ls \
-			$(OBJDIR)/user/lsfd \
-			$(OBJDIR)/user/num \
-			$(OBJDIR)/user/forktree \
-			$(OBJDIR)/user/primes \
-			$(OBJDIR)/user/primespipe \
-			$(OBJDIR)/user/sh \
-			$(OBJDIR)/user/testfdsharing \
-			$(OBJDIR)/user/testkbd \
-			$(OBJDIR)/user/testpipe \
-			$(OBJDIR)/user/testpteshare \
-			$(OBJDIR)/user/testshell \
-			$(OBJDIR)/user/hello \
-			$(OBJDIR)/user/date \
-			$(OBJDIR)/user/vdate \
+				$(OBJDIR)/user/cat \
+				$(OBJDIR)/user/echo \
+				$(OBJDIR)/user/ls \
+				$(OBJDIR)/user/lsfd \
+				$(OBJDIR)/user/num \
+				$(OBJDIR)/user/forktree \
+				$(OBJDIR)/user/primes \
+				$(OBJDIR)/user/primespipe \
+				$(OBJDIR)/user/sh \
+				$(OBJDIR)/user/testfdsharing \
+				$(OBJDIR)/user/testkbd \
+				$(OBJDIR)/user/testpipe \
+				$(OBJDIR)/user/testpteshare \
+				$(OBJDIR)/user/testshell \
+				$(OBJDIR)/user/hello \
+				$(OBJDIR)/user/date \
+				$(OBJDIR)/user/vdate \
+				$(OBJDIR)/user/useradd \
+				$(OBJDIR)/user/userdel \
+				$(OBJDIR)/user/testfsrwonly \
+				$(OBJDIR)/user/rm \
+				$(OBJDIR)/user/mkdir \
+				$(OBJDIR)/user/login \
+				$(OBJDIR)/user/test_cred \
+				$(OBJDIR)/user/chmod \
+				$(OBJDIR)/user/chown \
 
 
-FSIMGFILES := $(FSIMGTXTFILES) $(USERAPPS)
+FSIMGFILES := $(FSIMGTXTFILES) $(USERAPPS) $(FSIMGDIRS)
 
 $(OBJDIR)/fs/%.o: fs/%.c fs/fs.h inc/lib.h $(OBJDIR)/.vars.USER_CFLAGS
 	@echo + cc[USER] $<

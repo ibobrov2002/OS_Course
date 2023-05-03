@@ -110,20 +110,27 @@ env_init(void) {
     /* Set up envs array */
 
     // LAB 3: Your code here
-    env_free_list = &envs[0];
-    for (size_t i = 0; i < NENV - 1; i++) {
+    for (int_fast32_t i = 0; i < NENV - 1; ++i) {
+        envs[i].env_status = ENV_FREE;
+        envs[i].env_id = 0;
         envs[i].env_link = &envs[i + 1];
+        envs[i].env_ucred.cr_uid = 0;
+        envs[i].env_ucred.cr_gid = 0;
+        envs[i].env_ucred.cr_ruid = 0;
+        envs[i].env_ucred.cr_rgid = 0;
     }
-    /*for (ssize_t i = NENV - 1; i >= 0; i--) {
-        struct Env *cur_env = envs + i;
-        cur_env->env_status = ENV_FREE;
-        cur_env->env_link = env_free_list;
-        cur_env->env_id = 0;
-        env_free_list = cur_env;
-    }*/
+
+    envs[NENV - 1].env_status = ENV_FREE;
+    envs[NENV - 1].env_id = 0;
+    envs[NENV - 1].env_link = NULL;
+    envs[NENV - 1].env_ucred.cr_uid = 0;
+    envs[NENV - 1].env_ucred.cr_gid = 0;
+    envs[NENV - 1].env_ucred.cr_ruid = 0;
+    envs[NENV - 1].env_ucred.cr_rgid = 0;
+    env_free_list = envs;
 
     vsys = kzalloc_region(UVSYS_SIZE);
-    memset((void *)vsys, 0, ROUNDUP(UVSYS_SIZE, PAGE_SIZE));
+    memset((void *)vsys, 0, UVSYS_SIZE);
     map_region(current_space, UVSYS, &kspace, (uintptr_t)vsys, UVSYS_SIZE, PROT_R | PROT_USER_);
     
 }

@@ -94,6 +94,14 @@ int sys_unmap_region(envid_t env, void *pg, size_t size);
 int sys_ipc_try_send(envid_t to_env, uint64_t value, void *pg, size_t size, int perm);
 int sys_ipc_recv(void *rcv_pg, size_t size);
 int sys_gettime(void);
+int sys_setuid(uid_t uid);
+int sys_setgid(gid_t gid);
+uid_t sys_getuid();
+gid_t sys_getgid();
+int sys_seteuid(uid_t uid);
+int sys_setegid(gid_t gid);
+uid_t sys_geteuid();
+gid_t sys_getegid();
 
 int vsys_gettime(void);
 
@@ -139,6 +147,8 @@ int open(const char *path, int mode);
 int ftruncate(int fd, off_t size);
 int remove(const char *path);
 int sync(void);
+int chown(const char *path, uid_t uid);
+int chmod(const char *path, permission_t permission);
 
 /* spawn.c */
 envid_t spawn(const char *program, const char **argv);
@@ -162,11 +172,14 @@ void wait(envid_t env);
 #define O_WRONLY  0x0001 /* open for writing only */
 #define O_RDWR    0x0002 /* open for reading and writing */
 #define O_ACCMODE 0x0003 /* mask for above modes */
+#define O_EXEC    0x0003 /* read for exec */
 
 #define O_CREAT 0x0100 /* create if nonexistent */
 #define O_TRUNC 0x0200 /* truncate to zero length */
 #define O_EXCL  0x0400 /* error if already exists */
-#define O_MKDIR 0x0800 /* create directory, not regular file */
+#define O_MKDIR  0x0800 /* create directory, not regular file */
+#define O_APPEND 0x1000
+
 
 #ifdef JOS_PROG
 extern void (*volatile sys_exit)(void);

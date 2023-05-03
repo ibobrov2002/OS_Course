@@ -1,6 +1,7 @@
 #include <inc/fs.h>
 #include <inc/string.h>
 #include <inc/lib.h>
+#include <user/user.h>
 
 union Fsipc fsipcbuf __attribute__((aligned(PAGE_SIZE)));
 
@@ -22,8 +23,8 @@ fsipc(unsigned type, void *dstva) {
         cprintf("[%08x] fsipc %d %08x\n",
                 thisenv->env_id, type, *(uint32_t *)&fsipcbuf);
     }
-
     ipc_send(fsenv, type, &fsipcbuf, PAGE_SIZE, PROT_RW);
+    //printf("in fsipc: ipc_send done.\n");
     size_t maxsz = PAGE_SIZE;
     return ipc_recv(NULL, dstva, &maxsz, NULL);
 }
@@ -84,6 +85,60 @@ open(const char *path, int mode) {
     }
 
     return fd2num(fd);
+}
+
+/*
+ * path of file to change ownership
+ * uid - uid_t value to set
+ * ok - ret 0
+ * otherwise < 0
+ */
+int
+chown(const char *path, uid_t uid) {
+    if (strlen(path) >= MAXPATHLEN) {
+        return -E_BAD_PATH;
+    }
+
+    if (!isuserexist(uid)) {
+        return -E_INVAL;
+    }
+
+    
+    strcpy(fsipcbuf.remove.req_path, path);
+
+    fsipcbuf.chown.req_uid = uid;
+
+    return fsipc(FSREQ_CHOWN, NULL);
+}
+
+/*
+ * path of file to change permission
+ * ok - ret 0
+ * otherwise < 0
+ */
+int
+chmod(const char *path, permission_t permission) {
+    if (strlen(path) >= MAXPATHLEN) {
+        return -E_BAD_PATH;
+    }
+
+    permission &= 0xdff; // get only permission bits
+
+    strcpy(fsipcbuf.remove.req_path, path);
+    fsipcbuf.chmod.req_perm = permission;
+
+    return fsipc(FSREQ_CHMOD, NULL);
+}
+
+int
+remove(const char *path) {
+    if (strlen(path) >= MAXPATHLEN) {
+        return -E_BAD_PATH;
+    }
+
+    strcpy(fsipcbuf.remove.req_path, path);
+
+    return fsipc(FSREQ_REMOVE, NULL);
 }
 
 /* Flush the file descriptor.  After this the fileid is invalid.
@@ -174,6 +229,7 @@ devfile_stat(struct Fd *fd, struct Stat *st) {
     strcpy(st->st_name, fsipcbuf.statRet.ret_name);
     st->st_size = fsipcbuf.statRet.ret_size;
     st->st_isdir = fsipcbuf.statRet.ret_isdir;
+    st->st_fcred = fsipcbuf.statRet.ret_fcred;
 
     return 0;
 }

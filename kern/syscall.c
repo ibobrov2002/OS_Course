@@ -4,6 +4,9 @@
 #include <inc/error.h>
 #include <inc/string.h>
 #include <inc/assert.h>
+//#include <inc/fs.h>
+//#include <fs/fs.h>
+//#include <inc/lib.h>
 
 #include <kern/console.h>
 #include <kern/env.h>
@@ -95,6 +98,7 @@ sys_exofork(void) {
     env->env_status = ENV_NOT_RUNNABLE;
     env->env_tf = curenv->env_tf;
     env->env_tf.tf_regs.reg_rax = 0;
+    env->env_ucred = curenv->env_ucred;
     return env->env_id;
 }
 
@@ -421,6 +425,146 @@ sys_region_refs(uintptr_t addr, size_t size, uintptr_t addr2, uintptr_t size2) {
     return 0;
 }
 
+/*
+ * Test whether this process has special user powers.
+ */
+int
+is_suser(struct Env* e) {
+    return e->env_ucred.cr_uid == 0;
+}
+
+int
+is_suser_cred(struct Ucred* cred) {
+    return cred->cr_uid == 0;
+}
+
+/*
+ *  Returns 0 on success, -E_PERM on error
+ */
+static int
+sys_setuid(uid_t uid) {
+    struct Env* env = curenv;
+    struct Ucred* cred;
+
+    cred = &(env->env_ucred);
+    /* do nothing if uid matches user's uid */
+    if (cred->cr_uid == uid &&
+        cred->cr_ruid == uid &&
+        cred->cr_svuid == uid)
+        return 0;
+    /* Permit only superuser or user with matching effective/real/saved uid */
+    if (cred->cr_uid != uid &&
+        cred->cr_ruid != uid &&
+        cred->cr_svuid != uid &&
+        !is_suser_cred(cred))
+        return -E_PERM;
+    /* Superuser or user with matching effective uid*/
+    if (uid == cred->cr_uid || is_suser_cred(cred)) {
+        cred->cr_ruid = uid;
+        cred->cr_svuid = uid;
+    }
+    cred->cr_uid = uid;
+
+    return 0;
+}
+
+/*
+ *  Returns 0 on success, -E_PERM on error
+ */
+static int
+sys_setgid(gid_t gid) {
+    struct Env* env = curenv;
+    struct Ucred* cred;
+
+    cred = &(env->env_ucred);
+    /* do nothing if gid matches user's gid */
+    if (cred->cr_gid == gid &&
+        cred->cr_rgid == gid &&
+        cred->cr_svgid == gid)
+        return 0;
+
+    /* Permit only superuser or user with matching effective/real/saved gid */
+    if (cred->cr_gid != gid &&
+        cred->cr_rgid != gid &&
+        cred->cr_svgid != gid &&
+        !is_suser_cred(cred))
+        return -E_PERM;
+
+    /* Superuser or user with matching effective gid*/
+    if (gid == cred->cr_gid || is_suser_cred(cred)) {
+        cred->cr_rgid = gid;
+        cred->cr_svgid = gid;
+    }
+    cred->cr_gid = gid;
+    return 0;
+}
+
+/*
+ *  Returns 0 on success, -E_PERM on error
+ */
+static int
+sys_seteuid(uid_t euid) {
+    struct Env* env = curenv;
+    struct Ucred* cred;
+
+    cred = &(env->env_ucred);
+    /* do nothing if uid matches user's uid */
+    if (cred->cr_uid == euid)
+        return 0;
+
+    if (cred->cr_ruid != euid &&
+        cred->cr_svuid != euid &&
+        !is_suser_cred(cred))
+        return -E_PERM;
+
+    cred->cr_uid = euid;
+    return 0;
+}
+
+/*
+ *  Returns 0 on success, -E_PERM on error
+ */
+static int
+sys_setegid(gid_t egid) {
+    struct Env* env = curenv;
+    struct Ucred* cred;
+
+    cred = &(env->env_ucred);
+    /* do nothing if uid matches user's uid */
+    if (cred->cr_gid == egid)
+        return 0;
+
+    if (cred->cr_rgid != egid &&
+        cred->cr_svgid != egid &&
+        !is_suser_cred(cred))
+        return -E_PERM;
+
+    cred->cr_gid = egid;
+    return 0;
+}
+
+static uid_t
+sys_getuid() {
+    return curenv->env_ucred.cr_ruid;
+}
+
+static gid_t
+sys_getgid() {
+    return curenv->env_ucred.cr_rgid;
+}
+
+static uid_t
+sys_geteuid() {
+    return curenv->env_ucred.cr_uid;
+}
+
+static gid_t
+sys_getegid() {
+    return curenv->env_ucred.cr_gid;
+}
+
+
+
 /* Dispatches to the correct kernel function, passing the arguments. */
 uintptr_t
 syscall(uintptr_t syscallno, uintptr_t a1, uintptr_t a2, uintptr_t a3, uintptr_t a4, uintptr_t a5, uintptr_t a6) {
@@ -463,6 +607,22 @@ syscall(uintptr_t syscallno, uintptr_t a1, uintptr_t a2, uintptr_t a3, uintptr_t
         return sys_env_set_trapframe((envid_t)a1, (struct Trapframe *)a2);
     case SYS_gettime:
         return sys_gettime();
+    case SYS_setuid:
+        return sys_setuid((uid_t)a1);
+    case SYS_getuid:
+        return sys_getuid();
+    case SYS_setgid:
+        return sys_setgid((gid_t)a1);
+    case SYS_getgid:
+        return sys_getgid();
+    case SYS_seteuid:
+        return sys_seteuid((uid_t)a1);
+    case SYS_geteuid:
+        return sys_geteuid();
+    case SYS_setegid:
+        return sys_setegid((gid_t)a1);
+    case SYS_getegid:
+        return sys_getegid();
     default:
         return -E_NO_SYS;
     }

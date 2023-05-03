@@ -78,7 +78,7 @@ spawn(const char *prog, const char **argv) {
 
     // TODO Properly load ELF and check errors
 
-    int fd = open(prog, O_RDONLY);
+    int fd = open(prog, O_EXEC);
     if (fd < 0) return fd;
 
     /* Read elf header */
@@ -285,7 +285,7 @@ map_segment(envid_t child, uintptr_t va, size_t memsz,
     /* Map read section conents to child */
     /* Unmap it from parent */
     if (memsz > filesz && 
-        (res = sys_alloc_region(child, (void *)ROUNDUP(va + filesz, 4096), memsz, perm)))
+        (res = sys_alloc_region(child, (void *)ROUNDUP(va + filesz, 4096), memsz - (size_t)ROUNDUP(filesz, 4096), perm)))
         return res;
 
     if ((res = sys_alloc_region(0, UTEMP, ROUNDUP(filesz, 4096), PTE_P | PTE_U | PTE_W)))
