@@ -6,6 +6,7 @@
 #include <IndustryStandard/Acpi62.h>
 #include <Library/UefiApplicationEntryPoint.h>
 #include <Library/DebugLib.h>
+#include <Protocol/GraphicsOutput.h>
 #include "Bootloader.h"
 #include "VirtualMemory.h"
 
@@ -105,50 +106,42 @@ InitGraphics (
   }
 
   //
-  // LAB 1: Your code here.
+  // LAB 1:
   //
-  // Switch to the maximum or any other resolution of your preference.
-  // Refer to Graphics Output Protocol description in UEFI spec for
-  // more details.
-  //
-  // Hint: Use GetMode/SetMode functions.
-  //
+  // Switch to this resolution (or lower)
+  UINTN maxX = 1000, maxY = 800;
   
-  UINTN                                ModeIdx;
-  UINTN                                TargetModeIdx;
-  UINT32                               MaxHorizontalResolution;
-  UINT32                               MaxverticalResolution;
-  EFI_GRAPHICS_OUTPUT_PROTOCOL_MODE    *Mode;
-  EFI_GRAPHICS_OUTPUT_MODE_INFORMATION *ModeInfo;
-  MaxHorizontalResolution = 0;
-  Mode = GraphicsOutput->Mode;
-
-  for (ModeIdx = 0; ModeIdx < Mode->MaxMode; ModeIdx++) {
-    GraphicsOutput->QueryMode (
+  UINTN MaxMode = GraphicsOutput->Mode->MaxMode;
+  UINTN targetMode = 0, maxResolution = 0;
+  
+  for(int i = 0; i < MaxMode; i++) {
+    EFI_GRAPHICS_OUTPUT_MODE_INFORMATION* out = NULL;
+    UINTN sizeOfGraphicsData;
+    
+    GraphicsOutput->QueryMode(
       GraphicsOutput,
-      ModeIdx,
-      &(Mode->SizeOfInfo),
-      &ModeInfo
-      );
-    if (EFI_ERROR (Status)) {
-      DEBUG ((DEBUG_ERROR, "JOS: Cannot query GraphicsOutput mode - %r\n", Status));
-      return Status;
-    }
+      i,
+      &sizeOfGraphicsData,
+      &out
+    );
 
-    // Select Maximum available horizontal resolution below 1280
-    if (ModeInfo->HorizontalResolution <= 1280 && 
-        MaxHorizontalResolution        <= ModeInfo->HorizontalResolution &&
-        MaxverticalResolution          <= ModeInfo->VerticalResolution) {
-      TargetModeIdx           = ModeIdx;
-      MaxHorizontalResolution = ModeInfo->HorizontalResolution;
-      MaxverticalResolution   = ModeInfo->VerticalResolution;
+    if(out) {
+      INTN hor = out->HorizontalResolution;
+      INTN ver = out->VerticalResolution;
+      
+      if(hor <= maxX && ver <= maxY && hor * ver > maxResolution) {
+        targetMode = i;
+        maxResolution = hor * ver;
+      }
     }
   }
-
+  
   GraphicsOutput->SetMode(
     GraphicsOutput,
-    TargetModeIdx
-    );
+    targetMode
+  );
+  // LAB 1 end.
+
 
   //
   // Fill screen with black.
@@ -1010,7 +1003,7 @@ UefiMain (
   UINTN              EntryPoint;
   VOID               *GateData;
 
-#if 0///< Uncomment to await debugging
+#if 0 ///< Uncomment to await debugging
   volatile BOOLEAN   Connected;
   DEBUG ((DEBUG_INFO, "JOS: Awaiting debugger connection\n"));
 

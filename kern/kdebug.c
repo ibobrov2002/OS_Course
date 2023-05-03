@@ -55,14 +55,15 @@ load_user_dwarf_info(struct Dwarf_Addrs *addrs) {
 
     /* Load debug sections from curenv->binary elf image */
     // LAB 8: Your code here
-    struct Elf *user_elf = (struct Elf *)(binary);
-    struct Secthdr *sect_hdr = (struct Secthdr *)(binary + user_elf->e_shoff);
-    const char *sh_str = (char *)(binary + sect_hdr[user_elf->e_shstrndx].sh_offset);
-    for (size_t i = 0; i < user_elf->e_shnum; i++) {
+    struct Elf *elf = (struct Elf *)binary;
+    struct Secthdr *sh = (struct Secthdr *)(binary + elf->e_shoff);
+    char *shstr = (char *)binary + sh[elf->e_shstrndx].sh_offset;
+    for (size_t i = 0; i < elf->e_shnum; i++) {
         for (size_t j = 0; j < sizeof(sections) / sizeof(*sections); j++) {
-            if (!strcmp(&sh_str[sect_hdr[i].sh_name], sections[j].name)) {
-                *sections[j].start = binary + sect_hdr[i].sh_offset;
-                *sections[j].end = binary + sect_hdr[i].sh_offset + sect_hdr[i].sh_size;
+            struct Secthdr *sh_cur = sh + i;
+            if (!strcmp(shstr + sh_cur->sh_name, sections[j].name)) {
+                *sections[j].start = binary + sh_cur->sh_offset;
+                *sections[j].end = binary + sh_cur->sh_offset + sh_cur->sh_size;
             }
         }
     }

@@ -37,9 +37,7 @@ int
 vcprintf(const char *fmt, va_list ap) {
     struct printbuf state = {0};
 
-
     vprintfmt((void *)putch, &state, fmt, ap);
-    
     sys_cputs(state.buf, state.offset);
 
     return state.count;

@@ -187,6 +187,12 @@ env_alloc(struct Env **newenv_store, envid_t parent_id, enum EnvType type) {
     /* For now init trapframe with IF set */
     env->env_tf.tf_rflags = FL_IF;
 
+    /* Clear the page fault handler until user installs one. */
+    env->env_pgfault_upcall = 0;
+
+    /* Also clear the IPC receiving flag. */
+    env->env_ipc_recving = 0;
+
     /* Commit the allocation */
     env_free_list = env->env_link;
     *newenv_store = env;
@@ -404,7 +410,8 @@ env_destroy(struct Env *env) {
     // LAB 3: Your code here
     env->env_status = ENV_DYING;
     env_free(env);
-    if (env == curenv) sched_yield();
+    if (env == curenv)
+        sched_yield();
     // LAB 8: Your code here (set in_page_fault = 0)
     in_page_fault = 0;
 }

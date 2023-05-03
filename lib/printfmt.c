@@ -29,6 +29,8 @@ static const char *const error_string[MAXERROR] = {
         [E_INVALID_EXE] = "invalid ELF image",
         [E_NO_ENT] = "entry not found",
         [E_NO_SYS] = "no such system call",
+        [E_IPC_NOT_RECV] = "env is not recving",
+        [E_EOF] = "unexpected end of file",
 };
 
 /*
@@ -186,21 +188,6 @@ vprintfmt(void (*putch)(int, void *), void *put_arg, const char *fmt, va_list ap
                 while (width-- > 0) putch(padc, put_arg);
             }
 
-            // ptr = (const char*)0x7000000000;
-            // ch = *ptr;
-            // ptr = (const char*)0x6000000000;
-            // ch = *ptr;
-            // ptr = (const char*)0x5000000000;
-            // ch = *ptr;
-            // ptr = (const char*)0x4000000000;
-            // ch = *ptr;
-            // ptr = (const char*)0x3000000000;
-            // ch = *ptr;
-            // ptr = (const char*)0x2000000000;
-            // ch = *ptr;
-            // ptr = (const char*)0x1000000000;
-            // ch = *ptr;
-            //ch = *ptr;//error
             for (; (ch = *ptr++) && (precision < 0 || --precision >= 0); width--) {
                 putch(altflag && (ch < ' ' || ch > '~') ? '?' : ch, put_arg);
             }
@@ -233,6 +220,7 @@ vprintfmt(void (*putch)(int, void *), void *put_arg, const char *fmt, va_list ap
             base = 8;
             num = get_unsigned(&aq, lflag, zflag);
             goto number;
+            //break;
 
         case 'p': /* pointer */
             putch('0', put_arg);

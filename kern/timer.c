@@ -91,27 +91,28 @@ acpi_find_table(const char *sign) {
     // LAB 5: Your code here
 
 
-    RSDP *rsdp = (RSDP *)uefi_lp->ACPIRoot;
+    physaddr_t acpi_phys = uefi_lp->ACPIRoot;
+    RSDP *rsdp = mmio_map_region((physaddr_t)acpi_phys, sizeof(*rsdp));
     static bool isXSDT = false;
     static RSDT *rsdt = NULL;
+    physaddr_t rsdt_phys;
     if (strncmp(rsdp->Signature, "RSD PTR ", 8))
         panic("Malformed RSDP");
 
     if (!rsdp->Revision) {
         // ACPI 1.0
         // use rsdt
-        physaddr_t rsdt_address = rsdp->RsdtAddress;
-        rsdt = (RSDT *)rsdt_address;
+        rsdt_phys = rsdp->RsdtAddress;
 
     } else {
         // ACPI 2.0
         // use xsdt
-        physaddr_t xsdt_address = rsdp->XsdtAddress;
-        rsdt = (RSDT *)xsdt_address;
+        rsdt_phys = rsdp->XsdtAddress;
 
         isXSDT = true;
     };
-
+    rsdt = mmio_map_region(rsdt_phys, sizeof(RSDT));
+    rsdt = mmio_map_region(rsdt_phys, rsdt->h.Length);
 
     // uint8_t checksum = 0;
     uint64_t entry_number = (rsdt->h.Length - sizeof(ACPISDTHeader)) / (isXSDT ? 8 : 4);
@@ -168,6 +169,7 @@ hpet_register(void) {
 void
 hpet_print_struct(void) {
     HPET *hpet = get_hpet();
+    assert(hpet != NULL);
     cprintf("signature = %s\n", (hpet->h).Signature);
     cprintf("length = %08x\n", (hpet->h).Length);
     cprintf("revision = %08x\n", (hpet->h).Revision);

@@ -5,7 +5,6 @@
 #include "inc/lib.h"
 
 
-
 #if !defined(SANITIZE_USER_SHADOW_BASE) || !defined(SANITIZE_USER_SHADOW_SIZE) || !defined(SANITIZE_USER_SHADOW_OFF)
 #error "You are to define SANITIZE_USER_SHADOW_BASE and SANITIZE_USER_SHADOW_SIZE for shadow memory support!"
 #endif
@@ -52,7 +51,11 @@ platform_abort() {
 static bool
 asan_shadow_allocator(struct UTrapframe *utf) {
     // LAB 9: Your code here
-    return 0;
+    if (!SHADOW_ADDRESS_VALID(utf->utf_fault_va))
+        return 0;
+    
+    sys_alloc_region(0, ROUNDDOWN((void *)utf->utf_fault_va, PAGE_SIZE), PAGE_SIZE, ALLOC_ONE | PROT_R | PROT_W);
+    return 1;
 }
 #endif
 
@@ -67,7 +70,7 @@ asan_shadow_allocator(struct UTrapframe *utf) {
 
 static int
 asan_unpoison_shared_region(void *start, void *end, void *arg) {
-    (void)start, (void)end, (void)arg;
+    //(void)start, (void)end, (void)arg;
     // LAB 8: Your code here
     platform_asan_unpoison(start, end - start);
     return 0;

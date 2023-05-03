@@ -1572,7 +1572,7 @@ __attribute__((aligned(HUGE_PAGE_SIZE))) uint8_t one_page_raw[HUGE_PAGE_SIZE];
 
 /*
  * This function initialized phyisical memory tree
- * with either UEFI memroy map or CMOS contents.
+ * with either UEFI memory map or CMOS contents.
  * Every region is inserted into the tree using
  * attach_region() function.
  */
@@ -1809,7 +1809,7 @@ init_memory(void) {
      * and KASAN shadow memory regions to new kernel address space.
      * Allocated memory should not be touches until address space switch */
 
-    /* Map physical memroy onto kernel address space weakly... */
+    /* Map physical memory onto kernel address space weakly... */
     /* NOTE We cannot use map_region to map memory allocated with ALLOC_WEAK */
 
     // LAB 7: Your code here
@@ -1830,7 +1830,7 @@ init_memory(void) {
     // LAB 7: Your code here
     // Map [PADDR(__text_start);PADDR(__text_end)] to [__text_start, __text_end] as R-X
     // It is next so it should be R-X
-    if (map_physical_region(&kspace, (uintptr_t)__text_start, PADDR(__text_start), __text_end - __text_start, PROT_R | PROT_X) < 0) {
+    if (map_physical_region(&kspace, (uintptr_t)__text_start, PADDR(__text_start), __text_end - __text_start, PROT_RWX) < 0) {
         panic("Can't map kernel's text section onto kernel space address");
     }
     /* Allocate kernel stacks */
@@ -1895,6 +1895,8 @@ init_memory(void) {
 
 #ifdef SANITIZE_SHADOW_BASE
     unpoison_meta(&root);
+    platform_asan_unpoison((void*)(KERN_PF_STACK_TOP - KERN_PF_STACK_SIZE), (size_t) KERN_PF_STACK_SIZE);
+    platform_asan_unpoison((void*)(KERN_STACK_TOP - KERN_STACK_SIZE), (size_t) KERN_STACK_SIZE);
 #endif
 
     /* Traps needs to be initiallized here
@@ -1933,15 +1935,15 @@ init_memory(void) {
         panic("Can't map low address kernel memory");
     }
 
-    if (map_physical_region(&kspace, X86ADDR((uintptr_t)__text_start), PADDR(__text_start), ROUNDUP(X86ADDR((uintptr_t)__text_end), CLASS_SIZE(0)) - X86ADDR((uintptr_t)__text_start), PROT_R | PROT_X) < 0) {
+    if (map_physical_region(&kspace, X86ADDR((uintptr_t)__text_start), PADDR(__text_start), __text_end - __text_start, PROT_R | PROT_X) < 0) {
         panic("Can't map .text");
     }
 
-    if (map_physical_region(&kspace, X86ADDR(KERN_STACK_TOP - KERN_STACK_SIZE), PADDR(bootstack), KERN_STACK_SIZE, PROT_R | PROT_W) < 0) {
+    if (map_physical_region(&kspace, X86ADDR(KERN_STACK_TOP - KERN_STACK_SIZE), PADDR(bootstack), PADDR(bootstacktop) - PADDR(bootstack), PROT_R | PROT_W) < 0) {
         panic("Cannot map physical region at ");
     }
 
-    if (map_physical_region(&kspace, X86ADDR(KERN_PF_STACK_TOP - KERN_PF_STACK_SIZE), PADDR(pfstack), KERN_PF_STACK_SIZE, PROT_R | PROT_W) < 0) {
+    if (map_physical_region(&kspace, X86ADDR(KERN_PF_STACK_TOP - KERN_PF_STACK_SIZE), PADDR(pfstack), PADDR(pfstacktop) - PADDR(pfstack), PROT_R | PROT_W) < 0) {
         panic("Cannot map physical region at of size");
     }
 

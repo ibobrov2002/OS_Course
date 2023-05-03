@@ -143,29 +143,28 @@ i386_init(void) {
 
     /* Lab 6 memory management initialization functions */
     init_memory();
-    // assert(false);
 
-    // pic_init();
-    // timers_init();
-    
+    pic_init();
+    timers_init();
+
     /* Framebuffer init should be done after memory init */
     fb_init();
     if (trace_init) cprintf("Framebuffer initialised\n");
+
     /* User environment initialization functions */
-    //assert(false);
     env_init();
 
     /* Choose the timer used for scheduling: hpet or pit */
-    //timers_schedule("hpet0");
+    timers_schedule("hpet0");
 
 #ifdef CONFIG_KSPACE
     /* Touch all you want */
-    ENV_CREATE_KERNEL_TYPE(prog_test1);
+    /*ENV_CREATE_KERNEL_TYPE(prog_test1);
     ENV_CREATE_KERNEL_TYPE(prog_test2);
     ENV_CREATE_KERNEL_TYPE(prog_test3);
     ENV_CREATE_KERNEL_TYPE(prog_test4);
     ENV_CREATE_KERNEL_TYPE(prog_test5);
-    ENV_CREATE_KERNEL_TYPE(prog_test6);
+    ENV_CREATE_KERNEL_TYPE(prog_test6);*/
 #else
 
 #if LAB >= 10
@@ -177,7 +176,7 @@ i386_init(void) {
     ENV_CREATE(TEST, ENV_TYPE_USER);
 #else
     /* Touch all you want. */
-    ENV_CREATE(user_hello, ENV_TYPE_USER);
+    ENV_CREATE(user_forktree, ENV_TYPE_USER);
 #endif /* TEST* */
 #endif
 
