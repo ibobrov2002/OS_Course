@@ -135,7 +135,7 @@ InitGraphics (
       return Status;
     }
 
-    // Select Maximum available horizontal resolution below 1024
+    // Select Maximum available horizontal resolution below 1280
     if (ModeInfo->HorizontalResolution <= 1280 && 
         MaxHorizontalResolution        <= ModeInfo->HorizontalResolution &&
         MaxverticalResolution          <= ModeInfo->VerticalResolution) {

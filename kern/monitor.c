@@ -11,6 +11,7 @@
 #include <kern/console.h>
 #include <kern/monitor.h>
 #include <kern/kdebug.h>
+#include <kern/env.h>
 
 #define WHITESPACE "\t\r\n "
 #define MAXARGS    16
@@ -19,6 +20,7 @@
 int mon_help(int argc, char **argv, struct Trapframe *tf);
 int mon_kerninfo(int argc, char **argv, struct Trapframe *tf);
 int mon_backtrace(int argc, char **argv, struct Trapframe *tf);
+int mon_echo(int argc, char **argv, struct Trapframe *tf);
 
 struct Command {
     const char *name;
@@ -31,6 +33,7 @@ static struct Command commands[] = {
         {"help", "Display this list of commands", mon_help},
         {"kerninfo", "Display information about the kernel", mon_kerninfo},
         {"backtrace", "Print stack backtrace", mon_backtrace},
+        {"echo", "Display args of echo", mon_echo},
 };
 #define NCOMMANDS (sizeof(commands) / sizeof(commands[0]))
 
@@ -61,6 +64,23 @@ int
 mon_backtrace(int argc, char **argv, struct Trapframe *tf) {
     // LAB 2: Your code here
 
+	uint64_t rbp = read_rbp();
+	uint64_t *pointer = (uintptr_t *)rbp;
+	uint64_t rip;
+	int res;
+	struct Ripdebuginfo info;
+	cprintf("Stack backtrace:\n");
+	while (rbp != 0) {
+		cprintf(" rbp %016lx ", rbp);
+		rbp = *pointer;
+		pointer++;
+		rip = *pointer;
+		cprintf("rip %016lx\n", rip);
+		res = debuginfo_rip((uintptr_t)rip, &info);
+		cprintf(" %s:%d: %s+%lu\n", info.rip_file, info.rip_line, info.rip_fn_name, rip - info.rip_fn_addr);
+		pointer = (uintptr_t *)rbp;
+	}
+	
     return 0;
 }
 
@@ -109,4 +129,14 @@ monitor(struct Trapframe *tf) {
     char *buf;
     do buf = readline("K> ");
     while (!buf || runcmd(buf, tf) >= 0);
+}
+
+int
+mon_echo(int argc, char **argv, struct Trapframe *tf)
+{
+	int i;
+	argc--;
+	for(i=1; i<=argc; i++)
+		cprintf("%s%c", argv[i], i==argc? '\n': ' ');
+	return 0;
 }
