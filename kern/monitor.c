@@ -77,7 +77,14 @@ mon_backtrace(int argc, char **argv, struct Trapframe *tf) {
 		rip = *pointer;
 		cprintf("rip %016lx\n", rip);
 		res = debuginfo_rip((uintptr_t)rip, &info);
-		cprintf(" %s:%d: %s+%lu\n", info.rip_file, info.rip_line, info.rip_fn_name, rip - info.rip_fn_addr);
+		if (res < 0) {
+            	    cprintf("Debug info was not found.\n");
+        	} else {
+            	    if (info.rip_fn_namelen == sizeof(info.rip_fn_name)) 
+                        cprintf("    %s:%d: %256s+%lu\n", info.rip_file, info.rip_line, info.rip_fn_name, rip - info.rip_fn_addr);
+           	    else 
+                	cprintf("    %s:%d: %s+%lu\n", info.rip_file, info.rip_line, info.rip_fn_name, rip - info.rip_fn_addr);
+        	}
 		pointer = (uintptr_t *)rbp;
 	}
 	
