@@ -1,46 +1,37 @@
-# OS_Course
+В индивидуальном задании предлагается добавить поддержку многопользовательского режима в JOS с целью создания подсистемы безопасности в виде аутентификации пользователей и обеспечения базовой изоляции. Подразумевается, что по аналогии с многими Unix-подобными системами при запуске ОС будет запускаться команда login[1], которая будет:
 
-This branch contains vastly improoved kernel memory subsystem with following new features:
+* проверять имя и пароль пользователя.
 
-    * 2M/1G pages
-    
-    * Lazy copying/lazy memory allocation
-    
-        * Used for speeding up ASAN memory allocation
-        
-        * Kernel memory is also lazily allocated
-        
-    * NX flag
-    
-    * Buddy physical memory allocator
-    
-    * O((log N)^2) region manipulation
-    
-    * More convinient syscall API
-    
-    * IPC with memory regions of size larger than 4K
-    
-        * Not used at the moment but would be useful for file server optimization
-          
-    * Reduced memory consumption by a lot
-    
-    * All supported sanitizers can work simultaniously with any amount of memory (as long as bootloader can allocate enough memory for the kernel)
+* при успехе входить в систему (создавать сессию).
 
-The code is mostly located in kern/pmap.c
+* запускать команду (оболочку) по умолчанию в домашней директории данного пользователя.
 
-A set of trees is used for holding metadata (nodes are of type struct Page):
+При выходе с помощью команды exit управление должно передаваться обратно в login с очисткой сессии. По умолчанию должен быть создан один пользователь user с паролем password, домашней директорией /home/user и командой по умолчанию sh. В процессе работы ОС должна быть возможность добавлять и удалять пользователей с помощью команд useradd и userdel.
 
-    * A tree describing physical memory
-    
-    * One tree for every address space (for every environment and kernel)
+Задание подразумевает реализацию следующих задач:
 
-TODO
+1. Доработка файловой системы для поддержки директорий и прав доступа к ним на уровне chmod и chown.
 
-    * Replace user_mem_assert with exception-based code
-    
-        * copyin/copyout functions
-        
-    * Refactor address space and move all kernel-only memory
-      regions to cannonical upper part of adress space
-      (this requeres copyin/copyout functions because
-       ASAN should never touch userspace memory)
+2. Создание команды login, запускаемой перед входом в ОС, обладающей следующими свойствами:
+
+   * предложение ввода логина и пароля при запуске;
+
+   * проверка наличия введённых имени пользователя в /etc/passwd и пароля в /etc/shadow[2];
+
+   * передача управления в команду по умолчанию, указанную в /etc/passwd;
+
+   * проверка пароля должна быть реализована криптографически стойким образом (например через PBKDF2, с защитой от тайминг-атак и попыток неправильного ввода пароля);
+
+3. Доработка команды exit:
+
+   * возврат в login при выходе из первого shell.
+
+4. Создание команды useradd для добавления нового пользователя с введённым паролем (в /etc/passwd и пароля в /etc/shadow) и создания его рабочей директории.
+
+   * интерфейс произвольный, можно руководствоваться Linux[3].
+
+5. Создание команды userdel для удаления пользователя, опционально с удалением рабочей директории.
+
+   * интерфейс произвольный, можно руководствоваться Linux[4].
+
+6. Создание команд для работы с директориями и их правами доступа: chmod, chown, mkdir. Интерфейс по аналогии с Linux.
